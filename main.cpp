@@ -38,6 +38,28 @@ std::vector<std::string> split_str(std::string& str, const std::string& sep) {
     return parts;
 }
 
+std::string fmt_ore_name(std::string raw_name) {
+    raw_name.erase(raw_name.find_last_of('_'));
+    std::string::size_type under = raw_name.find('_');
+    if (under != std::string::npos) {
+        raw_name[under] = ' ';
+        char& i = raw_name[under + 1];
+        i = std::toupper(i);
+    }
+    char& f = raw_name.front();
+    f = std::toupper(f);
+    return raw_name;
+}
+
+std::string get_initials(const std::string& name) {
+    std::string initials{name[0]};
+    std::string::size_type has_space = name.find(' ');
+    if(has_space != std::string::npos) {
+        initials.push_back(name[has_space + 1]);
+    }
+    return initials;
+}
+
 
 int main(int argc, char* argv[]) {
     auto file = "nbt.txt";
