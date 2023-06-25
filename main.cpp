@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 std::string read_file(const char* fileName) {
     std::ifstream file(fileName);
@@ -22,6 +23,21 @@ std::string read_file(const char* fileName) {
     file.read(&contents[0], fileSize);
     return contents;
 }
+
+std::vector<std::string> split_str(std::string& str, const std::string& sep) {
+    std::vector<std::string> parts{};
+    std::size_t front{}, tail{};
+
+    while ((tail = str.find(sep, front)) != std::string::npos) {
+        std::string piece = str.substr(front, tail - front + sep.size());
+        parts.emplace_back(std::move(piece));
+        front = tail + sep.size();
+    }
+    parts.emplace_back(str.substr(front));
+
+    return parts;
+}
+
 
 int main(int argc, char* argv[]) {
     auto file = "nbt.txt";
