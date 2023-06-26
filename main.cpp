@@ -7,7 +7,9 @@
 #include <unordered_map>
 #include <vector>
 
-static std::regex rx("translate\".*mineral\\.(\\w+)\".*dimension:.*x:(-?\\d+).*z:(-?\\d+)", std::regex::icase);
+static const std::regex oreRgx(R"_(translate".*mineral\.(\w+)")_");
+static const std::regex xRgx(R"_(dimension:.*x:(-?\d+))_");
+static const std::regex zRgx(R"_(dimension:.*z:(-?\d+))_");
 
 enum mc_color {
     black = 0,
@@ -174,19 +176,24 @@ std::vector<std::string> split_str(std::string& str, const std::string& sep) {
     return parts;
 }
 
-std::vector<std::string>& get_waypoints(std::vector<std::string>& wayp_vec) {
-    std::transform(wayp_vec.begin(), wayp_vec.end(), wayp_vec.begin(), [&](std::string& s) {
-        auto it = std::sregex_iterator(s.begin(), s.end(), rx);
-        if (it == std::sregex_iterator()) {
-            return std::string{};
+std::vector<std::string>& get_waypoints(std::vector<std::string>& strVec) {
+    std::transform(strVec.begin(), strVec.end(), strVec.begin(), [&](std::string& s) -> std::string {
+        try {
+            using std::regex_search;
+            std::smatch ore, x, z;
+            if (regex_search(s, ore, oreRgx) && regex_search(s, x, xRgx) && regex_search(s, z, zRgx)) {
+                return { Waypoint(ore[1], x[1], z[1]) };
+            } else {
+                return {};
+            }
+        } catch (const std::regex_error& ex) {
+            std::cout << ex.what() << std::endl;
+            return {};
         }
-
-        Waypoint w((*it)[1], (*it)[2], (*it)[3]);
-        return std::string{w};
     });
 
-    wayp_vec.erase(std::remove_if(wayp_vec.begin(), wayp_vec.end(), [](auto& s) { return s.empty(); }), wayp_vec.end());
-    return wayp_vec;
+    strVec.erase(std::remove_if(strVec.begin(), strVec.end(), [](auto& s) { return s.empty(); }), strVec.end());
+    return strVec;
 }
 
 int main(int argc, char* argv[]) {
@@ -198,5 +205,6 @@ int main(int argc, char* argv[]) {
     for (auto& w : waypoints) {
         output << w << '\n';
     }
+    std::cout << "Finished" << std::endl;
     return 0;
 }
