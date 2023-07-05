@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -67,7 +68,6 @@ std::unordered_map<std::string, std::vector<std::string>> category_map{
 };
 
 std::string to_lower(std::string str);
-std::string fmt_ore_name(std::string raw_name, const std::string& cat);
 
 template <typename Result, typename Collection>
 Result get_if_any(const std::string& id, Collection collection, Result default_r) {
@@ -141,18 +141,18 @@ std::string to_lower(std::string str) {
     return str;
 }
 
-std::string read_file(const char* fileName) {
+std::string read_file(const std::string fileName) {
     std::ifstream file(fileName);
     if (!file.is_open()) {
         std::cout << "The file " << fileName << " could no be open\n";
-        return "";
+        return {};
     }
 
     file.seekg(0, std::ios_base::end);
     std::streampos fileSize = file.tellg();
     if (fileSize.state()._State & std::ios_base::failbit) {
         std::cout << "An error occured reading the file " << fileName << '\n';
-        return "";
+        return {};
     }
     file.seekg(0, std::ios_base::beg);
 
@@ -176,7 +176,7 @@ std::vector<std::string> split_str(std::string& str, const std::string& sep) {
     return parts;
 }
 
-std::vector<std::string>& get_waypoints(std::vector<std::string>& strVec) {
+std::vector<std::string> get_waypoints(std::vector<std::string>& strVec) {
     std::transform(strVec.begin(), strVec.end(), strVec.begin(), [&](std::string& s) -> std::string {
         try {
             using std::regex_search;
@@ -196,15 +196,63 @@ std::vector<std::string>& get_waypoints(std::vector<std::string>& strVec) {
     return strVec;
 }
 
-int main(int argc, char* argv[]) {
-    const char* file = "nbt.txt";
-    std::string nbt = read_file(file);
+std::vector<std::string> gen_waypoints() {
+    std::string nbt = read_file("nbt.txt");
     nbt.erase(std::remove_if(nbt.begin(), nbt.end(), ::isspace), nbt.end());
-    auto waypoints = get_waypoints(split_str(nbt, "data:"));
-    std::ofstream output("out.txt");
-    for (auto& w : waypoints) {
-        output << w << '\n';
+    return get_waypoints(split_str(nbt, "data:"));
+}
+
+void update_waypoint_file(const std::string filePath) {
+    std::string fileContents = read_file(filePath);
+    if(fileContents.empty()) return;
+    std::istringstream waypoint_file{ fileContents };
+    std::string line;
+    std::set<std::string> waypoints{};
+    std::string header{};
+    while (std::getline(waypoint_file, line)) {
+        if (line.rfind("sets", 0) == 0) {
+            header = line;
+            break;
+        }
     }
-    std::cout << "Finished" << std::endl;
+
+    if (header.empty()) {
+        std::cout << "No waypoint header found\n";
+        return;
+    }
+
+    while (std::getline(waypoint_file, line)) {
+        waypoints.insert(line);
+    }
+
+    std::ofstream file(filePath);
+    if (!file.is_open()) {
+        std::cout << "Could not open waypoints file\n";
+        return;
+    }
+
+    {
+        auto newWaypoints = gen_waypoints();
+        std::ofstream output("out.txt");
+        for (auto& w : newWaypoints) {
+            output << w << '\n';
+        }
+        std::copy(newWaypoints.begin(), newWaypoints.end(), std::inserter(waypoints, waypoints.end()));
+    }
+
+    file << header << '\n';
+    for (auto& v : waypoints) {
+        file << v << '\n';
+    }
+
+    std::cout << "file updated\n";
+}
+
+int main(int argc, char* argv[]) {
+    if (argc >= 3) {
+        if ((::_stricmp(argv[1], "-update") == 0)) {
+            update_waypoint_file(argv[2]);
+        }
+    }
     return 0;
 }
